@@ -10,6 +10,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import top.icss.codec.MessageCodec;
 import top.icss.constants.CommonConstants;
@@ -22,10 +23,13 @@ import java.util.concurrent.TimeUnit;
  * @author cd.wang
  * @create 2021-11-17 18:46
  */
+@Data
 @Slf4j
 public class NettyServer {
     public final EventLoopGroup bossGroup;
     public final EventLoopGroup workerGroup;
+    public volatile Channel proxyChannel;
+    public volatile Channel channel;
 
     public NettyServer() {
         bossGroup = new NioEventLoopGroup(1);
@@ -54,9 +58,8 @@ public class NettyServer {
         }
     }
 
-    public Channel startProxy(int port, Channel proxyChannel){
+    public void startProxy(int port){
         ServerBootstrap b = new ServerBootstrap();
-        ChannelFuture future = null;
         b.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
                 .childHandler(new ChannelInitializer<SocketChannel>() {
@@ -67,13 +70,12 @@ public class NettyServer {
                     }
                 });
         try {
-            future = b.bind(port);
+            channel = b.bind(port).channel();
             log.info("bind proxy port success {}", port);
         } catch (Exception e) {
             log.error("startProxy Exception {}", e.getMessage());
             throw e;
         }
-        return future.channel();
     }
 
     public static void main(String[] args) {

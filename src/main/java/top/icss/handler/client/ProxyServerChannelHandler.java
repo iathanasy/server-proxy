@@ -47,7 +47,7 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
                 processDisconnected(ctx, msg);
                 break;
             case KEEPALIVE:
-                log.debug("{}, {}, {}", name, ctx.channel(), msg.getType());
+//                log.debug("{}, {}, {}", name, ctx, msg.getType());
                 break;
             default:
                 throw new Exception("未知类型: " + msg.getType());
@@ -56,7 +56,6 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        ChannelManager.channelGroup.close();
         client.close();
         log.info("与服务器[{}]断开链接！", ctx.channel().remoteAddress());
     }
@@ -69,14 +68,14 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
             packet.setType(EnumMessageType.KEEPALIVE);
             map.put("name", client.getName());
             packet.setBody(JsonSerializer.serialize(map));
-            ctx.channel().writeAndFlush(packet);
+            ctx.writeAndFlush(packet);
         }else{
             super.userEventTriggered(ctx, evt);
         }
     }
 
     // step 2
-    private void processConnected(ChannelHandlerContext ctx, MessagePacket msg) {
+    private void processConnected(ChannelHandlerContext ctx, MessagePacket msg) throws InterruptedException {
         HashMap map = JsonSerializer.deserialize(msg.getBody(), HashMap.class);
         String name = map.get("name").toString();
         String channelId = map.get("channelId").toString();
@@ -84,23 +83,31 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
         final String remoteIp = client.getRemoteIp();
         final int remotePort = client.getRemotePort();
         try {
-            real.connect(remoteIp, remotePort).addListener(new ChannelFutureListener() {
+            ChannelFuture future = real.connect(remoteIp, remotePort).sync();
+            future.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    final Channel realServerChannel = future.channel();
-                    realServerChannel.attr(ChannelManager.CHANNEL_ID_STR).set(channelId);
-                    realServerChannel.attr(ChannelManager.CHANNEL_ID).set(ctx.channel());
+                    if(future.isSuccess()) {
+                        final Channel realServerChannel = future.channel();
+                        realServerChannel.attr(ChannelManager.CHANNEL_ID_STR).set(channelId);
+                        realServerChannel.attr(ChannelManager.CHANNEL_ID).set(ctx.channel());
 
-                    log.warn("connect real server success, {}", realServerChannel);
-                    // 保存真实服务器Channel
-                    ChannelManager.channelMap.put(channelId, realServerChannel);
-                    ChannelManager.channelGroup.add(realServerChannel);
+                        log.warn("connect real server success, {}", realServerChannel);
+                        // 保存真实服务器Channel
+                        ChannelManager.channelMap.put(channelId, realServerChannel);
+                    }else{
+                        log.error("connect real server failed, {}:{}", remoteIp, remotePort);
+                        msg.setType(EnumMessageType.DISCONNECTED);
+                        ctx.writeAndFlush(msg);
+                        ChannelManager.channelMap.remove(channelId);
+                    }
                 }
             });
         }catch (Exception e){
             msg.setType(EnumMessageType.DISCONNECTED);
-            ctx.channel().writeAndFlush(msg);
-            log.error("connect real server failed, {}:{}", remoteIp, remotePort);
+            ctx.writeAndFlush(msg);
+            log.error("connect real server exception, {}:{}", remoteIp, remotePort);
+            ChannelManager.channelMap.remove(channelId);
             throw e;
         }
 
@@ -122,10 +129,10 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
         HashMap map = JsonSerializer.deserialize(msg.getBody(), HashMap.class);
         String name = map.get("name").toString();
         String channelId = map.get("channelId").toString();
-        Channel channel = ChannelManager.clientChannel.get(channelId);
+        Channel channel = ChannelManager.channelMap.get(channelId);
         if(channel != null){
             channel.close();
-            ChannelManager.clientChannel.remove(channelId);
+            ChannelManager.channelMap.remove(channelId);
         }
     }
 }

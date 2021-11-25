@@ -27,6 +27,8 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<MessagePack
 
     private AtomicBoolean auth = new AtomicBoolean(false);
 
+    private int port;
+
     public ProxyChannelHandler(NettyServer nettyServer) {
         this.nettyServer = nettyServer;
     }
@@ -46,7 +48,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<MessagePack
                 processDisconnected(ctx, msg);
                 break;
             case KEEPALIVE:
-                log.debug("{}, {}, {}", name, ctx.channel(), msg.getType());
+//                log.debug("{}, {}, {}", name, ctx.channel(), msg.getType());
                 ctx.channel().writeAndFlush(msg);
                 break;
             default:
@@ -61,7 +63,12 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<MessagePack
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         String name = ctx.channel().attr(ChannelManager.CLIENT_NAME).get();
         ChannelManager.clientChannel.remove(name);
-        super.channelInactive(ctx);
+        if (auth.get()) {
+            if (nettyServer.getChannel() != null) {
+                nettyServer.getChannel().close();
+            }
+            log.info("停止服务器的端口: {}， {}", name, port);
+        }
     }
 
     @Override
@@ -82,17 +89,22 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<MessagePack
     private void processAuth(ChannelHandlerContext ctx, MessagePacket msg) {
         HashMap<String, Object> map = JsonSerializer.deserialize(msg.getBody(), HashMap.class);
         String name = map.get("name").toString();
+        Object serverIp = map.get("serverIp");
         Object port = map.get("port");
+        Object remoteIp = map.get("remoteIp");
+        Object remotePort = map.get("remotePort");
         int tempPort = Objects.isNull(port) ? NetUtil.getAvailablePort() : (int) port;
 
         try {
             final Channel proxyChannel = ctx.channel();
             proxyChannel.attr(ChannelManager.CLIENT_NAME).set(name);
-            nettyServer.startProxy(tempPort, proxyChannel);
+            nettyServer.setProxyChannel(proxyChannel);
+            nettyServer.startProxy(tempPort);
+            this.port = tempPort;
 
             ChannelManager.clientChannel.put(name, proxyChannel);
             auth.set(true);
-            log.info("{},客户端授权成功！", name);
+            log.info("{},客户端[{}]授权成功！{} --> {}", name, proxyChannel, String.format("%s:%s", serverIp, port), String.format("%s:%s", remoteIp, remotePort));
         } catch (Exception e) {
             log.error("客户端：{},{} 授权失败！{}", name, tempPort, e.getMessage());
             if (!auth.get()) {

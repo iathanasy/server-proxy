@@ -64,6 +64,5 @@ public class RealChannelHandler extends SimpleChannelInboundHandler<ByteBuf> {
         map.put("channelId", ctx.channel().id().asLongText());
         packet.setBody(JsonSerializer.serialize(map));
         proxyChannel.writeAndFlush(packet);
-        ChannelManager.channels.remove(ctx.channel());
     }
 }

@@ -103,7 +103,10 @@ public class NettyClient {
                         packet.setType(EnumMessageType.AUTH);
                         HashMap<String, Object> map = new HashMap<>();
                         map.put("name", name);
+                        map.put("serverIp", serverIp);
                         map.put("port", proxyRealPort);
+                        map.put("remoteIp", remoteIp);
+                        map.put("remotePort", remotePort);
                         packet.setBody(JsonSerializer.serialize(map));
                         future.channel().writeAndFlush(packet);
                         sleepTimeMill = 1000;

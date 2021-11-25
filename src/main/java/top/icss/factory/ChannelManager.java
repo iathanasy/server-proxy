@@ -20,7 +20,6 @@ public class ChannelManager {
     public final static AttributeKey<String> CLIENT_NAME = AttributeKey.newInstance("clientName");
 
     // Client
-    public final static ChannelGroup channelGroup = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
     public final static ConcurrentHashMap<String, Channel> channelMap = new ConcurrentHashMap<>();
     public final static AttributeKey<Channel> CHANNEL_ID = AttributeKey.newInstance("channelId");
     public final static AttributeKey<String> CHANNEL_ID_STR = AttributeKey.newInstance("channelIdStr");
