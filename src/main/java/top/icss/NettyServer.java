@@ -17,6 +17,7 @@ import top.icss.constants.CommonConstants;
 import top.icss.handler.server.ProxyChannelHandler;
 import top.icss.handler.server.RealChannelHandler;
 
+import java.net.BindException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -58,7 +59,7 @@ public class NettyServer {
         }
     }
 
-    public void startProxy(int port){
+    public void startProxy(int port) throws InterruptedException {
         ServerBootstrap b = new ServerBootstrap();
         b.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
@@ -70,7 +71,8 @@ public class NettyServer {
                     }
                 });
         try {
-            channel = b.bind(port).channel();
+            ChannelFuture future = b.bind(port).sync();
+            channel = future.channel();
             log.info("bind proxy port success {}", port);
         } catch (Exception e) {
             log.error("startProxy Exception {}", e.getMessage());
