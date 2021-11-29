@@ -13,11 +13,11 @@ import io.netty.handler.timeout.IdleStateHandler;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import top.icss.codec.MessageCodec;
-import top.icss.constants.CommonConstants;
+import top.icss.constants.ServerConstants;
 import top.icss.handler.server.ProxyChannelHandler;
 import top.icss.handler.server.RealChannelHandler;
+import top.icss.utils.NettyUtils;
 
-import java.net.BindException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,19 +41,19 @@ public class NettyServer {
         ServerBootstrap b = new ServerBootstrap();
         try {
             b.group(bossGroup, workerGroup)
-                    .channel(NioServerSocketChannel.class)
+                    .channel(NettyUtils.getServerSocketChannelClass())
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch){
                             ch.pipeline().addLast(
                                     new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 16, 0),
-                                    new IdleStateHandler(0, 0, CommonConstants.NETTY_SERVER_HEART_BEAT_TIME, TimeUnit.MILLISECONDS),
+                                    new IdleStateHandler(0, 0, ServerConstants.NETTY_SERVER_HEART_BEAT_TIME, TimeUnit.MILLISECONDS),
                                     new MessageCodec(),
                                     new ProxyChannelHandler(NettyServer.this));
                         }
                     })
-                    .bind(CommonConstants.SERVER_PORT);
-            log.info("proxy server start on port " + CommonConstants.SERVER_PORT);
+                    .bind(ServerConstants.SERVER_PORT);
+            log.info("proxy server start on port " + ServerConstants.SERVER_PORT);
         } catch (Exception e) {
             e.printStackTrace();
         }

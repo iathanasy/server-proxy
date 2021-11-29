@@ -13,13 +13,14 @@ import io.netty.handler.timeout.IdleStateHandler;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import top.icss.codec.MessageCodec;
-import top.icss.constants.CommonConstants;
+import top.icss.constants.ClientConstants;
 import top.icss.enums.EnumMessageType;
 import top.icss.factory.ChannelManager;
 import top.icss.handler.client.ProxyServerChannelHandler;
 import top.icss.handler.client.RealServerChannelHandler;
 import top.icss.packet.MessagePacket;
 import top.icss.utils.JsonSerializer;
+import top.icss.utils.NettyUtils;
 
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ public class NettyClient {
     public void start(){
         Bootstrap real = new Bootstrap();
         real.group(workerGroup)
-                .channel(NioSocketChannel.class)
+                .channel(NettyUtils.getSocketChannelClass())
                 .handler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel ch) {
@@ -80,7 +81,7 @@ public class NettyClient {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ch.pipeline().addLast(
                                 new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 16, 0),
-                                new IdleStateHandler(CommonConstants.NETTY_CLIENT_HEART_BEAT_TIME, 0, 0, TimeUnit.MILLISECONDS),
+                                new IdleStateHandler(ClientConstants.NETTY_CLIENT_HEART_BEAT_TIME, 0, 0, TimeUnit.MILLISECONDS),
                                 new MessageCodec(),
                                 new ProxyServerChannelHandler(real, NettyClient.this));
                     }
@@ -142,12 +143,12 @@ public class NettyClient {
     }
 
     public static void main(String[] args) {
-        NettyClient client = new NettyClient("admin",
-                CommonConstants.SERVER_IP,
-                CommonConstants.SERVER_PORT,
-                7000,
-                "192.168.10.212",
-                8848);
+        NettyClient client = new NettyClient(ClientConstants.CLIENT_NAME,
+                ClientConstants.CLIENT_SERVER_IP,
+                ClientConstants.CLIENT_SERVER_PORT,
+                ClientConstants.CLIENT_PROXY_PORT,
+                ClientConstants.SERVER_REAL_IP,
+                ClientConstants.SERVER_REAL_PORT);
         client.connect();
     }
 }
