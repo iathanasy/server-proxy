@@ -5,6 +5,7 @@ package top.icss.enums;
  * @create 2021-11-22 15:48
  */
 public enum EnumMessageType {
+    RES(0),
     AUTH(1),
     KEEPALIVE(2),
     CONNECTED(3),

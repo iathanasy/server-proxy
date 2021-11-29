@@ -37,6 +37,9 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
         HashMap map = JsonSerializer.deserialize(msg.getBody(), HashMap.class);
         String name = map.get("name").toString();
         switch (msg.getType()) {
+            case RES:
+                processRes(ctx, msg);
+                break;
             case CONNECTED:
                 processConnected(ctx, msg);
                 break;
@@ -53,6 +56,7 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
                 throw new Exception("未知类型: " + msg.getType());
         }
     }
+
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
@@ -72,6 +76,13 @@ public class ProxyServerChannelHandler extends SimpleChannelInboundHandler<Messa
         }else{
             super.userEventTriggered(ctx, evt);
         }
+    }
+
+    private void processRes(ChannelHandlerContext ctx, MessagePacket msg) {
+        HashMap map = JsonSerializer.deserialize(msg.getBody(), HashMap.class);
+        String name = map.get("name").toString();
+        String message = map.get("message").toString();
+        log.error(message);
     }
 
     // step 2

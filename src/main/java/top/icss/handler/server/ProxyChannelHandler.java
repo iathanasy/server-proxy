@@ -1,19 +1,18 @@
 package top.icss.handler.server;
 
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.handler.timeout.IdleStateEvent;
 import lombok.extern.slf4j.Slf4j;
 import top.icss.NettyServer;
+import top.icss.enums.EnumMessageType;
 import top.icss.factory.ChannelManager;
 import top.icss.packet.MessagePacket;
 import top.icss.utils.JsonSerializer;
-import top.icss.utils.NetUtil;
 
+import java.net.BindException;
 import java.util.HashMap;
-import java.util.Objects;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -93,23 +92,46 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<MessagePack
         Object port = map.get("port");
         Object remoteIp = map.get("remoteIp");
         Object remotePort = map.get("remotePort");
-        int tempPort = Objects.isNull(port) ? NetUtil.getAvailablePort() : (int) port;
+        int tempPort = (int) port;
 
+        if(ChannelManager.clientChannel.containsKey(name)){
+            log.error("已存在客户端：{},{} 授权失败！", name, tempPort);
+            MessagePacket packet = new MessagePacket();
+            Map<String, Object> mapRes = new HashMap<>();
+            mapRes.put("name", name);
+            mapRes.put("message", String.format("已存在客户端: %s, 授权失败！", name));
+            packet.setType(EnumMessageType.RES);
+            packet.setBody(JsonSerializer.serialize(mapRes));
+            ctx.writeAndFlush(packet).addListener(ChannelFutureListener.CLOSE);
+            return;
+        }
         try {
             final Channel proxyChannel = ctx.channel();
             proxyChannel.attr(ChannelManager.CLIENT_NAME).set(name);
             nettyServer.setProxyChannel(proxyChannel);
             nettyServer.startProxy(tempPort);
             this.port = tempPort;
-
             ChannelManager.clientChannel.put(name, proxyChannel);
             auth.set(true);
             log.info("{},客户端[{}]授权成功！{} --> {}", name, proxyChannel, String.format("%s:%s", serverIp, port), String.format("%s:%s", remoteIp, remotePort));
         } catch (Exception e) {
-            log.error("客户端：{},{} 授权失败！{}", name, tempPort, e.getMessage());
-            if (!auth.get()) {
-                ctx.close();
+            if(e instanceof BindException) {
+                log.error("客户端: {},端口：{} 已被绑定！", name, tempPort);
+                MessagePacket packet = new MessagePacket();
+                Map<String, Object> mapRes = new HashMap<>();
+                mapRes.put("name", name);
+                mapRes.put("message", String.format("客户端: %s,端口：%s 已被绑定！", name, tempPort));
+                packet.setType(EnumMessageType.RES);
+                packet.setBody(JsonSerializer.serialize(mapRes));
+                ctx.writeAndFlush(packet).addListener(ChannelFutureListener.CLOSE);
+            }else{
+                if (!auth.get()) {
+                    log.error("客户端：{},{} 授权失败！{}", name, tempPort, e.getMessage());
+                    ctx.close();
+                }
             }
+
+
         }
     }
 
