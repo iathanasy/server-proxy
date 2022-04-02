@@ -43,15 +43,8 @@ public class RealChannelHandler extends SimpleChannelInboundHandler<byte[]> {
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        cause.printStackTrace();
-        super.exceptionCaught(ctx, cause);
-    }
-
-    @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         String channelId = ctx.channel().id().asShortText();
-        ChannelHolder.remove(channelId);
         log.info("[proxy] the channel {} disconnected", ctx.channel().remoteAddress().toString());
 
         Objects.requireNonNull(inboundChannel, "The proxy channel is not exists in cache pool.")

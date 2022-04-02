@@ -54,7 +54,6 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
                 lossConnectCount++;
                 if (lossConnectCount > 2){
                     System.out.println("关闭这个不活跃通道！");
-                    ChannelHolder.removeByChannel(ctx.channel());
                     ctx.close();
                 }
             }else {
@@ -118,7 +117,11 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
      * @param msg
      */
     private void processDisconnected(ChannelHandlerContext ctx, Message msg){
-        ChannelHolder.remove(msg.getChannelId());
+        Channel channel = ChannelHolder.get(msg.getChannelId());
+        if(channel != null) {
+            channel.close();
+            ChannelHolder.remove(msg.getChannelId());
+        }
     }
 
     /**
