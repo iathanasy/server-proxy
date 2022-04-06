@@ -12,7 +12,7 @@ import top.icss.protocol.Message;
 import top.icss.protocol.MessageType;
 import top.icss.utils.ChannelUtils;
 
-import java.util.Date;
+import java.net.BindException;
 import java.util.Objects;
 
 /**
@@ -28,7 +28,6 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
         lossConnectCount = 0;
         switch (msg.getType()) {
             case KEEPALIVE:
-                System.err.println(new Date() + ": " + msg);
                 ctx.writeAndFlush(Message.create());
                 break;
             case AUTH:
@@ -47,13 +46,13 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        System.out.println("已经30秒未收到客户端的消息了！");
+        System.err.println("已经30秒未收到客户端的消息了！" + lossConnectCount);
         if (evt instanceof IdleStateEvent) {
             IdleStateEvent e = (IdleStateEvent) evt;
             if (e.state() == IdleState.READER_IDLE) {
                 lossConnectCount++;
                 if (lossConnectCount > 2){
-                    System.out.println("关闭这个不活跃通道！");
+                    System.err.println("关闭这个不活跃通道！");
                     ctx.close();
                 }
             }else {
@@ -92,11 +91,16 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
             proxyServer.start(new RealChannelInitializer(inboundChannel), tempPort);
             res.setSuccess(true);
             res.setReason("注册成功，外网地址是:  "+ ChannelUtils.toAddress(ctx.channel()).getIp() +":" + tempPort);
-            System.out.println("注册成功，外网地址是:  "+ ChannelUtils.toAddress(ctx.channel()).getIp()  +":" + tempPort);
+            System.err.println(String.format("用户[%s]注册成功，外网地址是: [%s]", userName, ChannelUtils.toAddress(ctx.channel()).getIp()  +":" + tempPort));
         } catch (Exception e) {
             e.printStackTrace();
+            String err = e.getMessage();
+            if(e instanceof BindException){
+                err = String.format("端口[%s],已被绑定，请更换服务端口！", tempPort);
+            }
             res.setSuccess(false);
-            res.setReason(e.getMessage());
+            res.setReason(err);
+            System.err.println(String.format("用户[%s]授权失败，失败原因：%s", userName, err));
         }
         ctx.writeAndFlush(res);
     }
@@ -107,7 +111,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
      */
     private void processData(ChannelHandlerContext ctx, Message msg){
         Objects.requireNonNull(ChannelHolder.get(msg.getChannelId()),
-                        "[agent] the proxy channel " + msg.getChannelId() + " is not exists in cache.")
+                        "[proxy] the proxy channel " + msg.getChannelId() + " is not exists in cache.")
                 .writeAndFlush(msg.getData());
     }
 

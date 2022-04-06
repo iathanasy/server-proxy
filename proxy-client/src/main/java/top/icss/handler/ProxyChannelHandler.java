@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
 
     private ClientStarter clientStarter;
+    private boolean success = true;
 
     public ProxyChannelHandler(ClientStarter clientStarter) {
         this.clientStarter = clientStarter;
@@ -34,8 +35,6 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        log.info("client the [proxy] {} connected.", ctx.channel().remoteAddress().toString());
-
 //        ctx.executor().scheduleWithFixedDelay(()->{
 //            ctx.writeAndFlush(Message.create());
 //        },0, 10, TimeUnit.SECONDS);
@@ -48,7 +47,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
     protected void channelRead0(ChannelHandlerContext ctx, Message msg) throws Exception {
         switch (msg.getType()) {
             case KEEPALIVE:
-                System.err.println(new Date() + ": " + msg);
+//                System.err.println(new Date() + ": " + msg);
                 // 不处理
                 break;
             case AUTH_RES:
@@ -69,22 +68,19 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("{} exception.", ctx.channel().id().asShortText(), cause);
-        super.exceptionCaught(ctx, cause);
-    }
-
-    @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        clientStarter.getCallMsg().message(String.format("与[%s]服务器的连接断开，正在重连！", ctx.channel().remoteAddress().toString()));
-        NettyClient client = new NettyClient();
-        client.connect(new ProxyChannelInitializer(clientStarter), clientStarter.getServerHost(), clientStarter.getServerPort());
+        String str = String.format("与[%s]服务器的连接断开", ctx.channel().remoteAddress().toString());
+        if(success){
+            str += "，正在重连！";
+            NettyClient client = new NettyClient();
+            client.connect(new ProxyChannelInitializer(clientStarter), clientStarter.getServerHost(), clientStarter.getServerPort());
+        }
+        clientStarter.getCallMsg().message(str);
         super.channelInactive(ctx);
     }
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        System.out.println("客户端循环心跳监测发送: "+new Date());
         if (evt instanceof IdleStateEvent) {
             IdleStateEvent e = (IdleStateEvent) evt;
             if (e.state() == IdleState.WRITER_IDLE) {
@@ -116,6 +112,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
     private void processAuthRes(ChannelHandlerContext ctx, Message msg) {
         clientStarter.getCallMsg().message(msg.getReason());
         if (!msg.getSuccess()) {
+            success = msg.getSuccess();
             ctx.close();
         }
     }
@@ -151,7 +148,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
      */
     private void processData(ChannelHandlerContext ctx, Message msg){
         Objects.requireNonNull(ChannelHolder.get(msg.getChannelId()),
-                        "[agent] the proxy channel " + msg.getChannelId() + " is not exists in cache.")
+                        "[proxy] the proxy channel " + msg.getChannelId() + " is not exists in cache.")
                 .writeAndFlush(msg.getData());
     }
 

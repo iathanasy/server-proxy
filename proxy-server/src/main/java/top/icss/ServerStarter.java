@@ -8,7 +8,7 @@ import top.icss.handler.ProxyChannelInitializer;
 public class ServerStarter {
     private static int serverPort = 5891;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
 
         /* start tcp server **/
         NettyServer nettyServer = new NettyServer();

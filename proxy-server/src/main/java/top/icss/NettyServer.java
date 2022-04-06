@@ -2,6 +2,7 @@ package top.icss;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -19,8 +20,8 @@ public class NettyServer {
 
     private Channel channel;
 
-    public void start(ChannelInitializer<SocketChannel> initializer, int port) {
-        log.info("starting {}", port);
+    public void start(ChannelInitializer<SocketChannel> initializer, int port) throws Exception {
+        log.info("server starting {}", port);
         final EventLoopGroup parentGroup = new NioEventLoopGroup();
         final EventLoopGroup childGroup = new NioEventLoopGroup();
         try {
@@ -30,16 +31,14 @@ public class NettyServer {
                     .childHandler(initializer);
 
             channel = b.bind(port).sync().channel();
+            channel.closeFuture().addListener((ChannelFutureListener) future -> {
+                parentGroup.shutdownGracefully();
+                childGroup.shutdownGracefully();
+            });
         } catch (Exception e) {
             parentGroup.shutdownGracefully();
             childGroup.shutdownGracefully();
-            log.error("socket server start error.", e);
-        } finally {
-            if (channel.isActive()) {
-                log.info("socket server started at {}", channel.localAddress());
-            } else {
-                log.info("socket server start failed.");
-            }
+            throw e;
         }
     }
 

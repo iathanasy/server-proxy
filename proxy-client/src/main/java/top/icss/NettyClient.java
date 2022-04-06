@@ -15,7 +15,7 @@ import top.icss.utils.NettyUtils;
 public class NettyClient {
 
     public ChannelFuture connect(ChannelInitializer<SocketChannel> initializer, String inetHost, int inetPort) throws InterruptedException {
-        log.info("is connecting to {}:{}...", inetHost, inetPort);
+        log.info("client is connecting to {}:{}...", inetHost, inetPort);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             Bootstrap b = new Bootstrap();
