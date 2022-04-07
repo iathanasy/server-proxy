@@ -110,7 +110,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
             NettyServer proxyServer = new NettyServer();
             proxyServer.start(new RealChannelInitializer(inboundChannel), tempPort);
             res.setSuccess(true);
-            res.setReason("注册成功，外网地址是:  "+ ChannelUtils.toAddress(ctx.channel()).getIp() +":" + tempPort);
+            res.setReason("授权成功，外网地址是:  "+ ChannelUtils.toAddress(ctx.channel()).getIp() +":" + tempPort);
             Host host = new Host(inboundChannel.remoteAddress().toString());
             inboundChannel.attr(clientUser).set(String.format("[%s]-[%s]-[%s]", userName, host.getAddress(), tempPort));
             log.info(String.format("用户[%s]授权成功，外网地址是: [%s]", userName, ProxyServerConfig.getInstance().getServerHost() +":" + tempPort));
