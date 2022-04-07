@@ -5,13 +5,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.util.AttributeKey;
+import io.netty.util.internal.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 import top.icss.ChannelHolder;
 import top.icss.NettyServer;
+import top.icss.config.ProxyServerConfig;
 import top.icss.protocol.Message;
 import top.icss.protocol.MessageType;
 import top.icss.utils.ChannelUtils;
-
+import top.icss.utils.Host;
 import java.net.BindException;
 import java.util.Objects;
 
@@ -21,6 +24,7 @@ import java.util.Objects;
  */
 @Slf4j
 public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
+    private final AttributeKey<String> clientUser = AttributeKey.valueOf("client_user");
     private int lossConnectCount = 0;
 
     @Override
@@ -45,14 +49,30 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
     }
 
     @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        String client = ctx.channel().attr(clientUser).get();
+        if(StringUtil.isNullOrEmpty(client)){
+            Host host = new Host(ctx.channel().remoteAddress().toString());
+            client = host.getAddress();
+        }
+        log.info("关闭客户端{}通道！", client);
+        super.channelInactive(ctx);
+    }
+
+    @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        System.err.println("已经30秒未收到客户端的消息了！" + lossConnectCount);
+        String client = ctx.channel().attr(clientUser).get();
+        if(StringUtil.isNullOrEmpty(client)){
+            Host host = new Host(ctx.channel().remoteAddress().toString());
+            client = host.getAddress();
+        }
+        log.info("已经30秒未收到客户端{}的消息了！", client,lossConnectCount);
         if (evt instanceof IdleStateEvent) {
             IdleStateEvent e = (IdleStateEvent) evt;
             if (e.state() == IdleState.READER_IDLE) {
                 lossConnectCount++;
                 if (lossConnectCount > 2){
-                    System.err.println("关闭这个不活跃通道！");
+                    log.info("关闭这个不活跃通道！");
                     ctx.close();
                 }
             }else {
@@ -91,7 +111,9 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
             proxyServer.start(new RealChannelInitializer(inboundChannel), tempPort);
             res.setSuccess(true);
             res.setReason("注册成功，外网地址是:  "+ ChannelUtils.toAddress(ctx.channel()).getIp() +":" + tempPort);
-            System.err.println(String.format("用户[%s]注册成功，外网地址是: [%s]", userName, ChannelUtils.toAddress(ctx.channel()).getIp()  +":" + tempPort));
+            Host host = new Host(inboundChannel.remoteAddress().toString());
+            inboundChannel.attr(clientUser).set(String.format("[%s]-[%s]-[%s]", userName, host.getAddress(), tempPort));
+            log.info(String.format("用户[%s]授权成功，外网地址是: [%s]", userName, ProxyServerConfig.getInstance().getServerHost() +":" + tempPort));
         } catch (Exception e) {
             e.printStackTrace();
             String err = e.getMessage();
@@ -100,7 +122,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
             }
             res.setSuccess(false);
             res.setReason(err);
-            System.err.println(String.format("用户[%s]授权失败，失败原因：%s", userName, err));
+            log.info(String.format("用户[%s]授权失败，失败原因：%s", userName, err));
         }
         ctx.writeAndFlush(res);
     }

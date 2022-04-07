@@ -4,23 +4,26 @@ import io.netty.channel.ChannelFuture;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+import top.icss.config.ProxyClientConfig;
 import top.icss.handler.ProxyChannelInitializer;
 
 /**
  * @author cd.wang
  * @create 2022-04-01 13:58
  */
+@Slf4j
 @Data
 public class ClientStarter {
-    private String serverHost = "127.0.0.1";
-    private int serverPort = 5891;
+    private String serverHost = ProxyClientConfig.getInstance().getServerHost();
+    private int serverPort = ProxyClientConfig.getInstance().getServerPort();
 
-    private String proxyHost = "192.168.10.173";
-    private int proxyPort = 8848;
+    private String proxyHost = ProxyClientConfig.getInstance().getProxyHost();
+    private int proxyPort = ProxyClientConfig.getInstance().getProxyPort();
 
-    private String username = "admin";
-    private String password = "123456";
-    private int remotePort = 7000;
+    private String username = ProxyClientConfig.getInstance().getUsername();
+    private String password = ProxyClientConfig.getInstance().getPassword();
+    private int remotePort = ProxyClientConfig.getInstance().getRemotePort();
 
     private CallMsg callMsg;
 
@@ -32,13 +35,13 @@ public class ClientStarter {
         ClientStarter clientStarter = new ClientStarter(new CallMsg() {
             @Override
             public void message(String msg) {
-                System.err.println(msg);
+                log.info(msg);
             }
         });
         NettyClient nettyClient = new NettyClient();
-        ChannelFuture future = null;
         try {
-            future = nettyClient.connect(new ProxyChannelInitializer(clientStarter), clientStarter.getServerHost(), clientStarter.getServerPort());
+            clientStarter.getCallMsg().message(ProxyClientConfig.getInstance().toString());
+            ChannelFuture future = nettyClient.connect(new ProxyChannelInitializer(clientStarter), clientStarter.getServerHost(), clientStarter.getServerPort());
             future.addListener(new GenericFutureListener() {
                 @Override
                 public void operationComplete(Future future) throws Exception {
