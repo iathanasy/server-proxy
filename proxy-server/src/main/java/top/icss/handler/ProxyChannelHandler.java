@@ -24,6 +24,7 @@ import java.util.Objects;
  */
 @Slf4j
 public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
+    private final NettyServer proxyServer = new NettyServer();
     private final AttributeKey<String> clientUser = AttributeKey.valueOf("client_user");
     private int lossConnectCount = 0;
 
@@ -55,6 +56,7 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
             Host host = new Host(ctx.channel().remoteAddress().toString());
             client = host.getAddress();
         }
+        proxyServer.destroy();
         log.info("关闭客户端{}通道！", client);
         super.channelInactive(ctx);
     }
@@ -107,7 +109,6 @@ public class ProxyChannelHandler extends SimpleChannelInboundHandler<Message> {
         }
         try {
             /* start proxy server **/
-            NettyServer proxyServer = new NettyServer();
             proxyServer.start(new RealChannelInitializer(inboundChannel), tempPort);
             res.setSuccess(true);
             res.setReason("授权成功，外网地址是:  "+ ChannelUtils.toAddress(ctx.channel()).getIp() +":" + tempPort);
