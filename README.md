@@ -1,6 +1,7 @@
 ## 基于Netty做的内网穿透，暂不支持Https
+
 ## 特性
-1. 支持http\tcp\websocket
+1. 支持http\tcp\ws
 
 ## 使用
 > 服务端(部署在外网服务器) proxy-server.properties
@@ -23,10 +24,11 @@ server.port=5891
 user.username=admin
 user.password=123456
 # 代理地址
-proxy.host=192.168.10.212
+proxy.host=127.0.0.1
 proxy.port=8080
 # 远程访问端口
-remote.port=7001
+remote.port=7000
+
 ```
 1. 打包 `mvn clean & mvn install`
 2. 复制class文件夹下的 `config/proxy-client.properties`,保证`lib`、`proxy-client.jar`、`config/proxy-client.properties` 在同一级目录
