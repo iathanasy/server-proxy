@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  gitlab:
+    image: yrzr/gitlab-ce-arm64v8
+    container_name: gitlab
+    hostname: 'gitlab.sb'
+    ports:
+      - "7200:80"
+      - "7201:443"
+      - "7202:22"
+    restart: always
+    environment:
+      TZ: 'Asia/Shanghai'
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://gitlab.sb'
+        gitlab_rails['time_zone'] = 'Asia/Shanghai'
+        gitlab_rails['gitlab_shell_ssh_port'] = 7202
+        gitlab_rails['backup_path'] = "/data/gitlab-backup"
+        gitlab_rails['backup_keep_time'] = 1296000
+    volumes:
+      - /Users/cd/env/docker/gitlab/config:/etc/gitlab
+      - /Users/cd/env/docker/gitlab/logs:/var/log/gitlab
+      - /Users/cd/env/docker/gitlab/data:/var/opt/gitlab
+      - /Users/cd/env/docker/gitlab/gitlab-backup:/data/gitlab-backup
